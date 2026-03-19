@@ -18,9 +18,8 @@ import (
 
 func newServeCmd() *cobra.Command {
 	var (
-		addr       string
-		natsURL    string
-		webhookURL string
+		addr    string
+		natsURL string
 	)
 
 	cmd := &cobra.Command{
@@ -45,12 +44,6 @@ func newServeCmd() *cobra.Command {
 			if natsURL == "" {
 				return fmt.Errorf("NATS URL required (--nats or config nats.url)")
 			}
-			if webhookURL == "" {
-				webhookURL = cfg.Server.WebhookURL
-			}
-			if webhookURL == "" {
-				return fmt.Errorf("webhook URL required (--webhook or config server.webhook_url)")
-			}
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer cancel()
@@ -66,7 +59,7 @@ func newServeCmd() *cobra.Command {
 			log.Printf("[Wind] connected to %s", natsURL)
 
 			// Create chat widget components
-			source := nimschatwidget.NewSource(webhookURL, "nimschatwidget")
+			source := nimschatwidget.NewSource(wind, "nimschatwidget")
 			songbird := nimschatwidget.NewSongbird(wind)
 			if err := songbird.Start(); err != nil {
 				return fmt.Errorf("starting songbird: %w", err)
@@ -86,14 +79,13 @@ func newServeCmd() *cobra.Command {
 				os.Exit(0)
 			}()
 
-			log.Printf("nimschatwidget %s listening on %s (webhook: %s)", Version, addr, webhookURL)
+			log.Printf("nimschatwidget %s listening on %s", Version, addr)
 			return http.ListenAndServe(addr, mux)
 		},
 	}
 
 	cmd.Flags().StringVar(&addr, "addr", "", "listen address (default :8096)")
 	cmd.Flags().StringVar(&natsURL, "nats", "", "NATS URL")
-	cmd.Flags().StringVar(&webhookURL, "webhook", "", "forest webhook URL")
 
 	return cmd
 }

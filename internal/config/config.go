@@ -14,8 +14,7 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Addr       string `yaml:"addr"`
-	WebhookURL string `yaml:"webhook_url"`
+	Addr string `yaml:"addr"`
 }
 
 type NATSConfig struct {
