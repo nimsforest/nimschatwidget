@@ -10,7 +10,7 @@ func handleWidget(w http.ResponseWriter, r *http.Request) {
 
 const widgetJS = `(function() {
   var cfg = window.nimschatwidgetConfig || {};
-  var basePath = cfg.basePath || '/admin/chat';
+  var basePath = cfg.baseURL || cfg.basePath || '/admin/chat';
   var sessionId = cfg.sessionId || 'default';
   var context = cfg.context || '';
   var defaultNim = cfg.defaultNim || '';

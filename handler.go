@@ -57,7 +57,21 @@ func Handler(source *Source, songbird *Songbird) http.Handler {
 	mux.HandleFunc("GET /events", handleEvents(songbird))
 	mux.HandleFunc("GET /widget", handleWidget)
 
-	return mux
+	return cors(mux)
+}
+
+// cors wraps a handler with permissive CORS headers for cross-origin embeds.
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func handleSend(source *Source) http.HandlerFunc {
