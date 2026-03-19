@@ -37,7 +37,7 @@ func newServeCmd() *cobra.Command {
 				addr = cfg.Server.Addr
 			}
 			if addr == "" {
-				addr = ":8089"
+				addr = ":8096"
 			}
 			if natsURL == "" {
 				natsURL = cfg.NATS.URL
@@ -91,7 +91,7 @@ func newServeCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&addr, "addr", "", "listen address (default :8089)")
+	cmd.Flags().StringVar(&addr, "addr", "", "listen address (default :8096)")
 	cmd.Flags().StringVar(&natsURL, "nats", "", "NATS URL")
 	cmd.Flags().StringVar(&webhookURL, "webhook", "", "forest webhook URL")
 
