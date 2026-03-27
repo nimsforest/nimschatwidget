@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  MODULE: github.com/nimsforest/nimschatwidget
+  BINARY: nimschatwidget
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Configure private Go modules
+      run: |
+        git config --global url."https://${{ secrets.GO_MODULE_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      env:
+        GOPRIVATE: github.com/nimsforest/*
+
+    - name: Build Linux binary
+      env:
+        GOPRIVATE: github.com/nimsforest/*
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        LDFLAGS="-s -w -X ${MODULE}/internal/cli.Version=${VERSION}"
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ${BINARY} -ldflags="${LDFLAGS}" ./cmd/nimschatwidget
+
+    - name: Build and push Docker image
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        REGISTRY=registry.nimsforest.com
+
+        docker build -t ${REGISTRY}/${BINARY}:${VERSION} -t ${REGISTRY}/${BINARY}:latest .
+        docker push ${REGISTRY}/${BINARY}:${VERSION}
+        docker push ${REGISTRY}/${BINARY}:latest
