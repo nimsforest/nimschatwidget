@@ -1,140 +1,124 @@
 # NimsChatWidget Testbook
 
-Validates the `nimschatwidget` package — embeddable nim chat for any NimsForest surface.
+Validates the `nimschatwidget` package -- thin iframe launcher that opens the webchat embed mode.
 
 ## Prerequisites
 
-- A NimsForest app integrating nimschatwidget (e.g., nimsforestissue)
-- Forest pipeline running (webhook -> tree -> treehouse -> nim -> agentclaudecode)
-- Wind (NATS) connected
-- `webhook_url` configured in the embedding app's config
+- nimschatwidget running (standalone or embedded)
+- Webchat available at the configured `webchatURL` (e.g., `https://webchat.nimsforest.mynimsforest.com`)
+- A host page that loads the widget script
 
-## 1. Package integration
-
-```go
-// Minimal integration in any NimsForest app:
-source := nimschatwidget.NewSource(webhookURL, "myapp")
-songbird := nimschatwidget.NewSongbird(wind)
-songbird.Start()
-mux.Handle("/admin/chat/", http.StripPrefix("/admin/chat", nimschatwidget.Handler(source, songbird)))
-```
-
-Verify: app starts without errors, logs show `Catching leaves on subject: song.nimschatwidget.>`
-
-## 2. Widget endpoint
+## 1. Widget JS endpoint
 
 ```bash
-# Serves JS content
-curl -s https://<app>/admin/chat/widget | head -c 30
+curl -s https://chatwidget.nimsforest.mynimsforest.com/widget | head -c 30
 # Expected: (function() {
 ```
 
-## 3. Nims list
+Verify response headers:
 
 ```bash
-curl -s https://<app>/admin/chat/nims | python3 -m json.tool | head -5
-# Expected: JSON array of {name, role} objects
+curl -sI https://chatwidget.nimsforest.mynimsforest.com/widget
+# Expected: Content-Type: application/javascript; charset=utf-8
+# Expected: Access-Control-Allow-Origin: *
+# Expected: Cache-Control: public, max-age=300
 ```
 
-## 4. Send message
+## 2. Health endpoint
 
 ```bash
-curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"session_id":"test-1","target_nim":"nimble","text":"hello","context":"Test context"}' \
-  https://<app>/admin/chat/send
+curl -s https://chatwidget.nimsforest.mynimsforest.com/health
 # Expected: {"status":"ok"}
 ```
 
-## 5. SSE events
+## 3. CORS preflight
 
 ```bash
-# In terminal 1: listen for events
-curl -s -N "https://<app>/admin/chat/events?session=test-1"
-
-# In terminal 2: send a message
-curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"session_id":"test-1","target_nim":"nimble","text":"say hello","context":""}' \
-  https://<app>/admin/chat/send
-
-# Expected in terminal 1: data: {"text":"...","source":"nimble"}
+curl -sI -X OPTIONS https://chatwidget.nimsforest.mynimsforest.com/widget
+# Expected: 204 No Content
+# Expected: Access-Control-Allow-Origin: *
 ```
 
-## 6. Context passthrough
+## 4. Host page integration
 
-```bash
-curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"session_id":"ctx-test","target_nim":"nimble","text":"what context do you see?","context":"Issue #42: Fix login bug\nStatus: open\nPriority: high"}' \
-  https://<app>/admin/chat/send
+Embed the widget on any page:
 
-# Listen for response:
-timeout 60 curl -s -N "https://<app>/admin/chat/events?session=ctx-test"
-# Expected: nim response should reference Issue #42 / login bug
+```html
+<script>
+  window.nimschatwidgetConfig = {
+    webchatURL: 'https://webchat.nimsforest.mynimsforest.com',
+    context: 'Page: Homepage\nUser: test'
+  };
+</script>
+<script src="https://chatwidget.nimsforest.mynimsforest.com/widget"></script>
 ```
 
-## 7. Browser validation
+## 5. Browser validation -- button
 
-1. Open the app's admin page where the widget is embedded
-2. **Verify**: green floating chat button in bottom-right corner
-3. Click the button
-4. **Verify**: slide panel opens from right with nim selector dropdown
-5. **Verify**: dropdown lists nims (neo, nimble, nurture, etc.)
-6. Select a nim, type a message, press Enter
-7. **Verify**: user message appears as light green bubble (#DCF5DB) on right
-8. **Verify**: bouncing dot typing indicator appears (3 green dots)
-9. **Verify**: nim response appears as white bubble with border on left, with nim name label
-10. Click X to close panel
-11. **Verify**: panel slides closed
+1. Open the host page
+2. **Verify**: green floating chat button (56px circle, #4AA847) in bottom-right corner
+3. Hover over button
+4. **Verify**: button scales up slightly, background darkens to #3d8f3c
 
-## 8. Visual design alignment
+## 6. Browser validation -- iframe panel
 
-The widget should match nimsforestwebchat's design:
+1. Click the green button
+2. **Verify**: iframe panel appears above the button (bottom: 96px, right: 24px)
+3. **Verify**: panel is 400x600px with 16px border-radius and drop shadow
+4. **Verify**: iframe loads the webchat embed URL with session and context query parameters
+5. **Verify**: close button (x) appears in top-right of the panel
+6. Click close button
+7. **Verify**: panel hides, button remains visible
+8. Click button again
+9. **Verify**: same iframe reopens (no reload, sends postMessage with updated context)
 
-| Element | Expected |
-|---------|----------|
-| User bubble | #DCF5DB background, #1E3A1C text, rounded with small bottom-right corner |
-| Nim bubble | White background, #6B5B4E text, 1px #EDE9E5 border, small bottom-left corner |
-| Body font | Georgia, "Source Serif 4", serif |
-| UI font | Inter, DM Sans, system sans-serif |
-| Send button | 40px circle, #4AA847 green, white arrow SVG |
-| Input | #F0F3ED background, #E2DDD8 border, 12px radius |
-| Typing indicator | 3 bouncing dots, #A8D5A2 color, 1.4s animation |
-| Message area | #F8FAF5 background |
-| Header | White background, #EDE9E5 bottom border |
+## 7. Session persistence
 
-## 9. SSE reconnect
+1. Open widget, note the iframe src URL -- extract the `session=` parameter value
+2. Close browser tab, reopen the page
+3. Open widget again
+4. **Verify**: same session ID in the iframe URL (stored in localStorage as `ncw-session`)
 
-1. Open chat widget in browser
-2. Restart the app container
-3. **Verify**: SSE reconnects within ~3 seconds (check Network tab)
-4. Send a new message
-5. **Verify**: message sends and response arrives
+## 8. Context updates
 
-## 10. Mobile layout
+1. Open widget (iframe loads)
+2. In browser console, update context:
+   ```js
+   window.nimschatwidgetConfig.context = 'Updated context: new page';
+   ```
+3. Close and reopen the widget panel
+4. **Verify**: postMessage with `{type: 'context', context: 'Updated context: new page'}` is sent to the iframe (check via browser DevTools > Console, or add a message listener in the webchat)
 
-1. Open on mobile or resize browser < 768px
+## 9. Mobile layout
+
+1. Open on mobile or resize browser below 640px width
 2. **Verify**: chat button is 48px, positioned 16px from edges
-3. **Verify**: panel opens as full-width overlay
+3. Click button
+4. **Verify**: iframe panel goes full-width and full-height (covers entire viewport)
+5. **Verify**: close button still accessible
 
-## 11. Songbird cleanup (chirp delivery)
+## 10. Double-init prevention
 
-1. Open chat widget, note the session ID
-2. Close the browser tab
-3. Check server logs — Songbird should log the listener removal (no orphaned chirp channels)
-4. No memory leak from abandoned SSE connections
+1. Load the widget script twice on the same page
+2. **Verify**: only one button and one panel appear (the `ncw-root` ID check prevents duplicates)
+
+## 11. Missing webchatURL
+
+1. Load widget without setting `webchatURL`:
+   ```html
+   <script>window.nimschatwidgetConfig = {};</script>
+   <script src="https://chatwidget.nimsforest.mynimsforest.com/widget"></script>
+   ```
+2. Click the button
+3. **Verify**: nothing happens, console shows `[nimschatwidget] webchatURL not configured`
 
 ## Pipeline trace
 
-Full message flow to verify end-to-end:
+The widget itself has no backend pipeline. The full message flow is:
 
 ```
-Widget POST /send
-  -> Source POST to forest webhook (http://46.225.164.179:8081/webhooks/chatwidget)
-  -> River (river.chat.widget)
-  -> Tree (message-chat) — parses, sets reply_subject=song.nimschatwidget.{session}
-  -> message.incoming
-  -> TreeHouse (message_router.lua) — routes to message.{target_nim}
-  -> Nim (renders prompt with {{.context}})
-  -> AgentBrain -> agent.work.ai.nimble.chat -> agentclaudecode
-  -> Result -> Nim publishes to song.nimschatwidget.{session}
-  -> Songbird catches -> chirps via SSE -> Widget displays
+User clicks button
+  -> iframe opens webchat /embed?session={id}&context={ctx}
+  -> webchat handles all chat UI, messaging, SSE, nim routing
+  -> widget only manages the iframe visibility and context updates via postMessage
 ```
