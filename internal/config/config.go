@@ -9,17 +9,12 @@ import (
 )
 
 type Config struct {
-	Server  ServerConfig `yaml:"server"`
-	NATS    NATSConfig   `yaml:"nats"`
-	Webhook string       `yaml:"webhook"` // forest webhook URL, e.g. http://127.0.0.1:8081/webhooks/chatwidget
+	Server     ServerConfig `yaml:"server"`
+	WebchatURL string       `yaml:"webchat_url"`
 }
 
 type ServerConfig struct {
 	Addr string `yaml:"addr"`
-}
-
-type NATSConfig struct {
-	URL string `yaml:"url"`
 }
 
 func Load(path string) (Config, error) {
