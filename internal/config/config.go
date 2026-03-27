@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	NATS   NATSConfig   `yaml:"nats"`
+	Server  ServerConfig `yaml:"server"`
+	NATS    NATSConfig   `yaml:"nats"`
+	Webhook string       `yaml:"webhook"` // forest webhook URL, e.g. http://127.0.0.1:8081/webhooks/chatwidget
 }
 
 type ServerConfig struct {

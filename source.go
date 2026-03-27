@@ -1,32 +1,34 @@
 package nimschatwidget
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"time"
-
-	"github.com/nimsforest/nimsforest2/pkg/nim"
 )
 
-const riverSubject = "river.chat.widget"
-
-// Source publishes chat messages into the forest river via JetStream.
+// Source publishes chat messages to the forest via the webhook endpoint.
 type Source struct {
-	wind    *nim.Wind
-	appName string
+	webhookURL string
+	appName    string
+	client     *http.Client
 }
 
-// NewSource creates a new Source that publishes chat messages to the forest river.
+// NewSource creates a new Source that POSTs chat messages to the forest webhook.
+// webhookURL is the full URL to the chatwidget webhook (e.g. "http://127.0.0.1:8081/webhooks/chatwidget").
 // appName identifies the embedding application (e.g., "nimschatwidget").
-func NewSource(wind *nim.Wind, appName string) *Source {
+func NewSource(webhookURL, appName string) *Source {
 	return &Source{
-		wind:    wind,
-		appName: appName,
+		webhookURL: webhookURL,
+		appName:    appName,
+		client:     &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
-// chatMessage is the payload published to the river.
+// chatMessage is the payload POSTed to the forest webhook.
 type chatMessage struct {
 	SessionID    string `json:"session_id"`
 	TargetNim    string `json:"target_nim"`
@@ -37,14 +39,7 @@ type chatMessage struct {
 	Timestamp    string `json:"timestamp"`
 }
 
-// riverData wraps the payload for JetStream consumption by the forest river.
-type riverData struct {
-	Subject   string          `json:"subject"`
-	Data      json.RawMessage `json:"data"`
-	Timestamp time.Time       `json:"ts"`
-}
-
-// Send publishes a chat message to the forest river via JetStream.
+// Send publishes a chat message to the forest webhook.
 // The reply_subject is set to song.nimschatwidget.{sessionID} so the
 // forest pipeline routes responses back to this widget's Songbird.
 func (s *Source) Send(sessionID, targetNim, text, context string) error {
@@ -58,31 +53,22 @@ func (s *Source) Send(sessionID, targetNim, text, context string) error {
 		Timestamp:    time.Now().UTC().Format(time.RFC3339),
 	}
 
-	msgData, err := json.Marshal(msg)
+	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal message: %w", err)
 	}
 
-	rd := riverData{
-		Subject:   riverSubject,
-		Data:      json.RawMessage(msgData),
-		Timestamp: time.Now(),
-	}
-
-	payload, err := json.Marshal(rd)
+	resp, err := s.client.Post(s.webhookURL, "application/json", bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("marshal river data: %w", err)
+		return fmt.Errorf("post to webhook: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("webhook returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	js, err := s.wind.JetStream()
-	if err != nil {
-		return fmt.Errorf("get jetstream: %w", err)
-	}
-
-	if _, err := js.Publish(riverSubject, payload); err != nil {
-		return fmt.Errorf("publish to river: %w", err)
-	}
-
-	log.Printf("[Source] Published to %s (session=%s, nim=%s)", riverSubject, sessionID, targetNim)
+	log.Printf("[Source] Published to webhook (session=%s, nim=%s)", sessionID, targetNim)
 	return nil
 }
