@@ -12,8 +12,8 @@ const widgetJS = `(function() {
   var cfg = window.nimschatwidgetConfig || {};
   var basePath = cfg.baseURL || cfg.basePath || '/admin/chat';
   var sessionId = cfg.sessionId || 'default';
-  var context = cfg.context || '';
   var defaultNim = cfg.defaultNim || '';
+  function getContext() { var c = window.nimschatwidgetConfig || {}; return c.context || ''; }
 
   // Prevent double-init
   if (document.getElementById('ncw-root')) return;
@@ -142,7 +142,7 @@ const widgetJS = `(function() {
         session_id: sessionId,
         target_nim: nim,
         text: '[involve_human]',
-        context: context
+        context: getContext()
       })
     }).then(function(r) {
       if (!r.ok) throw new Error('server returned ' + r.status);
@@ -192,7 +192,7 @@ const widgetJS = `(function() {
         session_id: sessionId,
         target_nim: nim,
         text: text,
-        context: context
+        context: getContext()
       })
     })
     .then(function(r) {
