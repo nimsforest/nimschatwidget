@@ -66,20 +66,34 @@ Embed the widget on any page:
 2. **Verify**: iframe panel appears above the button (bottom: 96px, right: 24px)
 3. **Verify**: panel is 400x600px with 16px border-radius and drop shadow
 4. **Verify**: iframe loads the webchat embed URL with session and context query parameters
-5. **Verify**: close button (x) appears in top-right of the panel
+5. **Verify**: close button (x) and expand button (arrows) appear in top-right of the panel
 6. Click close button
 7. **Verify**: panel hides, button remains visible
 8. Click button again
 9. **Verify**: same iframe reopens (no reload, sends postMessage with updated context)
 
-## 7. Session persistence
+## 7. Expand/collapse toggle
+
+1. Open the widget panel
+2. **Verify**: expand button (arrows icon) appears in top-right, next to the close button
+3. Click the expand button
+4. **Verify**: panel grows to near-fullscreen (max 800x900px, 16px from edges)
+5. **Verify**: expand icon changes to collapse icon (arrows pointing inward)
+6. Close the panel and reopen it
+7. **Verify**: panel reopens in expanded state (persisted in localStorage as `ncw-expanded`)
+8. Click the collapse button
+9. **Verify**: panel returns to compact size (400x600px)
+10. Close and reopen
+11. **Verify**: panel reopens in compact state (preference persisted)
+
+## 8. Session persistence
 
 1. Open widget, note the iframe src URL -- extract the `session=` parameter value
 2. Close browser tab, reopen the page
 3. Open widget again
 4. **Verify**: same session ID in the iframe URL (stored in localStorage as `ncw-session`)
 
-## 8. Context updates
+## 9. Context updates
 
 1. Open widget (iframe loads)
 2. In browser console, update context:
@@ -89,7 +103,7 @@ Embed the widget on any page:
 3. Close and reopen the widget panel
 4. **Verify**: postMessage with `{type: 'context', context: 'Updated context: new page'}` is sent to the iframe (check via browser DevTools > Console, or add a message listener in the webchat)
 
-## 9. Mobile layout
+## 10. Mobile layout
 
 1. Open on mobile or resize browser below 640px width
 2. **Verify**: chat button is 48px, positioned 16px from edges
@@ -97,12 +111,12 @@ Embed the widget on any page:
 4. **Verify**: iframe panel goes full-width and full-height (covers entire viewport)
 5. **Verify**: close button still accessible
 
-## 10. Double-init prevention
+## 11. Double-init prevention
 
 1. Load the widget script twice on the same page
 2. **Verify**: only one button and one panel appear (the `ncw-root` ID check prevents duplicates)
 
-## 11. Missing webchatURL
+## 12. Missing webchatURL
 
 1. Load widget without setting `webchatURL`:
    ```html

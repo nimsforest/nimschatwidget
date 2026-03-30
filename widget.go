@@ -14,6 +14,9 @@ const widgetJS = `(function() {
     localStorage.setItem('ncw-session', sessionId);
   }
 
+  // Expand state: persist in localStorage
+  var isExpanded = localStorage.getItem('ncw-expanded') === 'true';
+
   // --- Styles ---
   var style = document.createElement('style');
   style.textContent = [
@@ -22,12 +25,16 @@ const widgetJS = `(function() {
     '#ncw-btn:hover { background:#3d8f3c;transform:scale(1.08); }',
     '#ncw-btn:active { transform:scale(0.95); }',
     '#ncw-btn svg { width:28px;height:28px;fill:#fff; }',
-    '#ncw-iframe-panel { position:fixed;bottom:96px;right:24px;width:400px;height:600px;border:none;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99998;display:none;overflow:hidden;background:#F8FAF5; }',
+    '#ncw-iframe-panel { position:fixed;bottom:96px;right:24px;width:400px;height:600px;border:none;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99998;display:none;overflow:hidden;background:#F8FAF5;transition:all .25s cubic-bezier(0.16,1,0.3,1); }',
     '#ncw-iframe-panel.ncw-open { display:block; }',
+    '#ncw-iframe-panel.ncw-expanded { bottom:16px;right:16px;width:calc(100vw - 32px);height:calc(100vh - 32px);max-width:800px;max-height:900px;border-radius:16px; }',
     '#ncw-iframe { width:100%;height:100%;border:none;border-radius:16px; }',
     '#ncw-close { position:absolute;top:8px;right:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.9);border:none;border-radius:50%;color:#1E3A1C;font-size:18px;cursor:pointer;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:background .15s; }',
     '#ncw-close:hover { background:#fff; }',
-    '@media (max-width:640px) { #ncw-iframe-panel { top:0;left:0;right:0;bottom:0;width:100%;height:100%;border-radius:0; } #ncw-iframe { border-radius:0; } #ncw-btn { bottom:16px;right:16px;width:48px;height:48px; } #ncw-btn svg { width:24px;height:24px; } }'
+    '#ncw-expand { position:absolute;top:8px;right:48px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.9);border:none;border-radius:50%;color:#1E3A1C;cursor:pointer;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:background .15s; }',
+    '#ncw-expand:hover { background:#fff; }',
+    '#ncw-expand svg { width:16px;height:16px; }',
+    '@media (max-width:640px) { #ncw-iframe-panel { top:0;left:0;right:0;bottom:0;width:100%;height:100%;border-radius:0; } #ncw-iframe-panel.ncw-expanded { top:0;left:0;right:0;bottom:0;width:100%;height:100%;max-width:100%;max-height:100%;border-radius:0; } #ncw-iframe { border-radius:0; } #ncw-btn { bottom:16px;right:16px;width:48px;height:48px; } #ncw-btn svg { width:24px;height:24px; } }'
   ].join('\n');
   document.head.appendChild(style);
 
@@ -52,6 +59,10 @@ const widgetJS = `(function() {
   closeBtn.innerHTML = '&times;';
   panel.appendChild(closeBtn);
 
+  var expandBtn = document.createElement('button');
+  expandBtn.id = 'ncw-expand';
+  panel.appendChild(expandBtn);
+
   var iframe = document.createElement('iframe');
   iframe.id = 'ncw-iframe';
   iframe.allow = 'clipboard-write';
@@ -59,6 +70,21 @@ const widgetJS = `(function() {
 
   root.appendChild(panel);
   document.body.appendChild(root);
+
+  // --- Expand/collapse icons ---
+  var expandIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+  var collapseIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+
+  function updateExpandButton() {
+    expandBtn.innerHTML = isExpanded ? collapseIcon : expandIcon;
+    expandBtn.title = isExpanded ? 'Compact view' : 'Expand view';
+    if (isExpanded) {
+      panel.classList.add('ncw-expanded');
+    } else {
+      panel.classList.remove('ncw-expanded');
+    }
+  }
+  updateExpandButton();
 
   // --- State ---
   var isOpen = false;
@@ -100,6 +126,13 @@ const widgetJS = `(function() {
   closeBtn.addEventListener('click', function(e) {
     e.stopPropagation();
     closePanel();
+  });
+
+  expandBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    isExpanded = !isExpanded;
+    localStorage.setItem('ncw-expanded', isExpanded ? 'true' : 'false');
+    updateExpandButton();
   });
 })();
 `
