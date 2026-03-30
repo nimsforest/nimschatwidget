@@ -5,7 +5,11 @@ const widgetJS = `(function() {
   if (document.getElementById('ncw-root')) return;
 
   function getWebchatURL() { return (window.nimschatwidgetConfig || {}).webchatURL || ''; }
-  function getContext() { return (window.nimschatwidgetConfig || {}).context || ''; }
+  function getContext() {
+    var cfg = window.nimschatwidgetConfig || {};
+    if (cfg.context) return cfg.context;
+    return document.title + '\n' + location.href;
+  }
 
   // Session ID: persist in localStorage
   var sessionId = localStorage.getItem('ncw-session');
