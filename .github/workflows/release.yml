@@ -42,6 +42,17 @@ jobs:
         LDFLAGS="-s -w -X ${MODULE}/internal/cli.Version=${VERSION}"
         CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ${BINARY} -ldflags="${LDFLAGS}" ./cmd/nimschatwidget
 
+    - name: Login to registry.nimsforest.com
+      continue-on-error: true
+      env:
+        MYCELIUM_DEPLOY_TOKEN: ${{ secrets.MYCELIUM_DEPLOY_TOKEN }}
+      run: |
+        if [ -n "$MYCELIUM_DEPLOY_TOKEN" ]; then
+          echo "$MYCELIUM_DEPLOY_TOKEN" | docker login registry.nimsforest.com -u ci --password-stdin
+        else
+          echo "MYCELIUM_DEPLOY_TOKEN not set; skipping login. Push will fail once --require-auth is enabled."
+        fi
+
     - name: Build and push Docker image
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
